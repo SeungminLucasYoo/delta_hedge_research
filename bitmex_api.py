@@ -72,7 +72,7 @@ class BitmexRestAPI(object):
                 return [i for i in final_result if datetime.datetime.strptime(i['timestamp'], '%Y-%m-%dT%H:%M:%S.%f%z') <= datetime.datetime.strptime(end_dt, '%Y-%m-%d %H:%M').astimezone(datetime.timezone.utc)]
             else:
 
-                start_dt = final_result[-1]
+                start_dt = (last_dt + datetime.timedelta(hours=8)).strftime('%Y-%m-%d %H:%M')
 
 
     @staticmethod
