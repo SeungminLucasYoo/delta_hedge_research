@@ -76,7 +76,7 @@ class BitmexRestAPI(object):
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
                 df['timestamp'] = df['timestamp'].shift(1)
 
-                final_df = df[(df['timestamp'] >= pd.Timestamp(start_dt, tz='utc')) & (df['timestamp'] <= pd.Timestamp(end_dt, tz='utc'))]
+                final_df = df[(df['timestamp'] >= pd.Timestamp(start_dt, tz='utc')) & (df['timestamp'] <= pd.Timestamp(end_dt, tz='utc'))].reset_index(drop=True)
 
                 return final_df
 
@@ -87,30 +87,68 @@ class BitmexRestAPI(object):
     @staticmethod
     def get_candle_data_by_chart(symbol, intv, start_dt, end_dt):
         """
-        Chart 크롤링을 통한
-        :param symbol: .BXBT, .BETH
+        Chart 크롤링을 통한 데이터
+        :param symbol: .BXBT, .BETH, ETHUSD, ....
+        :param intv: 1m, 1h
+        :param start_dt: '2010-01-01 11:00'
+        :param end_dt: '2010-01-31 15:00'
+        :return:
+        """
+        if intv =='1m':
+            intv = 1
+        elif intv == '1h':
+            intv = 60
+        elif intv == '1d':
+            intv = 1440
+
+        final_df = pd.DataFrame()
+
+        i = start_dt
+        while pd.Timestamp(i) < pd.Timestamp(end_dt):
+            df = BitmexRestAPI.get_candle_data_by_chart_count(symbol, intv, i, (pd.Timestamp(i)+pd.Timedelta(minutes=10079*intv)).strftime('%Y-%m-%d %H:%S'))   # up to 10080 candles available
+
+            final_df = pd.concat([final_df, df])
+            if final_df['t'].max() >= pd.Timestamp(end_dt, tz='utc'):
+                final_df = final_df[(final_df['t']>=pd.Timestamp(start_dt, tz='utc'))&(final_df['t']<=pd.Timestamp(end_dt, tz='utc'))].reset_index(drop=True)
+                return final_df
+            else:
+                i = (final_df['t'].max() + pd.Timedelta(minutes=intv)).strftime('%Y-%m-%d %H:%M')
+
+
+    @staticmethod
+    def get_candle_data_by_chart_count(symbol, intv, start_dt, end_dt):
+        """
+        Chart 크롤링을 통한 데이터
+        :param symbol: .BXBT, .BETH, ETHUSD, ....
         :param intv: 1m, 1h
         :param start_dt: '2010-01-01 11:00'
         :param end_dt: '2010-01-31 15:00'
         :return:
         """
         request_url = "https://www.bitmex.com/api/udf/history"
+        unix_start_dt = pd.Timestamp(start_dt).timestamp()
 
-        start_dt = int(datetime.datetime.strptime(start_dt, '%Y-%m-%d %H:%M').strftime('%s'))
-        end_dt = int(datetime.datetime.strptime(end_dt, '%Y-%m-%d %H:%M').strftime('%s'))
-        intv = 1 if intv == '1m' else 60
+        unix_end_dt = pd.Timestamp(end_dt).timestamp()
+        if intv == '1m':
+            intv = 1
+        elif intv == '1h':
+            intv = 60
+        elif intv == '1d':
+            intv = 1440
 
         query_params = {
             'symbol': symbol,
             'resolution': intv,
-            'from': start_dt,
-            'to': end_dt
+            'from': unix_start_dt,
+            'to': unix_end_dt
         }
 
         result = BitmexRestAPI._request(request_url, 'GET', query_params=query_params)
 
         final_df = pd.DataFrame(result)
-        final_df['t'] = pd.to_datetime(final_df['t'], utc=True)
+        final_df['t'] = pd.to_datetime(final_df['t'], utc=True, unit='s')
+        final_df = final_df[(final_df['t']>=pd.Timestamp(start_dt, tz='utc'))&(final_df['t']<=pd.Timestamp(end_dt, tz='utc'))].reset_index(drop=True)
+        final_df.loc[:, 'symbol'] = symbol
 
         return final_df
 
@@ -200,8 +238,8 @@ class BitmexRestAPI(object):
             if response.ok:
                 return BitmexRestAPI._handle_response(response)
             if response.status_code == 429:
-                logging.error('Rate LIMIT. sleep 5 sec')
-                time.sleep(5)
+                logging.error('Rate LIMIT. sleep 1 sec')
+                time.sleep(1)
 
 
 
@@ -224,4 +262,6 @@ if __name__ == '__main__':
     # c.get_candle_data_by_api('XBTUSD', '1m', '2019-01-01 00:00', '2019-01-07 00:00')
     # c.get_funding
     # c.get_historical_settlement('ETH', '2018-01-01 00:00', 500)
-    c.get_candle_data_by_api('ETH:quarterly', '1d', '2018-01-01 00:00', '2020-06-24 00:00')
+    # c.get_candle_data_by_api('ETH:quarterly', '1d', '2018-01-01 00:00', '2020-06-24 00:00')
+
+    c.get_candle_data_by_chart('ETHUSD', '1h', '2018-08-24 00:00', '2020-05-31 00:00')
