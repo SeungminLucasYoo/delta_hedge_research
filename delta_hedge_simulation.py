@@ -417,8 +417,6 @@ class DeltaHedgeSimulator(BitmexRestAPI):
         eth_usd_funding_df = DeltaHedgeSimulator.get_funding_rate('ETHUSD', self.start_dt, self.end_dt)
         xbt_usd_funding_df = DeltaHedgeSimulator.get_funding_rate('XBTUSD', self.start_dt, self.end_dt)
 
-        # enter_eth_usd_price = eth_usd_df.loc[pd.Timestamp(self.start_dt), 'vwap'] - self.r*DeltaHedgeSimulator._ETHUSD_SPREAD # 초기 ETHUSD Perp 진입가격
-        # enter_xbt_usd_price = xbt_usd_df.loc[pd.Timestamp(self.start_dt), 'vwap'] - self.r*DeltaHedgeSimulator._XBTUSD_SPREAD # 초기 XBTUSD Perp 진입가격
 
         if self.start_dt in list(settle_info_dict.keys()):  # 거래 시작시간이 만기면 새로운 근월물로
             enter_eth_xbt_price = eth_xbt_df.loc[pd.Timestamp(self.start_dt), 'vwap'].iloc[-1] - self.r*DeltaHedgeSimulator._ETHXBT_SPREAD  # 초기 ETHXBT futures 진입가격
@@ -494,8 +492,8 @@ class DeltaHedgeSimulator(BitmexRestAPI):
 
             else:   # 만기 아님.
                 eth_xbt_price = eth_xbt_df.loc[t, 'vwap'] - self.r*DeltaHedgeSimulator._ETHXBT_SPREAD # 신규진입 근월물 가격
-                if np.isnan(enter_eth_xbt_price):
-                    enter_eth_xbt_price = eth_xbt_df.loc[pd.Timestamp(self.start_dt), 'open'] - self.r * DeltaHedgeSimulator._ETHXBT_SPREAD
+                if np.isnan(eth_xbt_price):
+                    eth_xbt_price = eth_xbt_df.loc[t, 'open'] - self.r * DeltaHedgeSimulator._ETHXBT_SPREAD
                 eth_xbt_real_pnl, eth_xbt_unreal_pnl, avg_eth_xbt_price = DeltaHedgeSimulator.rebalancing_result('ETHXBT', avg_eth_xbt_price, q_3, eth_xbt_price, 0)
                 eth_xbt_fee = 0
                 roll_over_pnl = 0
@@ -612,4 +610,9 @@ if __name__ == '__main__':
     r = 0.5
     c = DeltaHedgeSimulator(start_dt, end_dt, init_xbt, init_quanto, freq, 'TAKER', r)
     # c.run_2()
-    c.run()
+    # c.run()
+
+    # d = c.get_candle_data_by_chart('.BXBT', '1h', start_dt, end_dt)
+    e = c.get_candle_data_by_chart('.BETHXBT', '1h', start_dt, end_dt)
+
+    print(1)
